@@ -1,20 +1,3 @@
-// fn run(commands: impl Iterator<Item=Command>, image_path: &str) {
-//     let turtle = Turtle::new();
-
-//     for command in commands {
-//         turtle.execute(command);
-//     }
-
-//     save_to_file(&turtle.path, image_path);
-// }
-
-// fn main() {
-//     let commands = Command::parse("command");
-//     let img_path = "path";
-
-//     run_and_save(commands, image_path);
-// }
-
 use std::fs::File;
 use std::io::Write;
 
@@ -26,10 +9,15 @@ enum Command {
 }
 
 impl Command {
-    /// Parses a string into a list of Commands. For simplicity, only a basic parser is shown.
     fn parse(input: &str) -> Vec<Command> {
-        let mut commands = Vec::new();
         let tokens: Vec<&str> = input.split_whitespace().collect();
+
+        Self::parse_tokens(&tokens[..])
+    }
+    // fn parse_tokens(tokens: Vec<&str>) -> Vec<Command> {
+        fn parse_tokens(tokens: &[&str]) -> Vec<Command> {
+
+        let mut commands = Vec::new();
         let mut i = 0;
 
         while i < tokens.len() {
@@ -39,7 +27,7 @@ impl Command {
                         commands.push(Command::Forward(value));
                         i += 2;
                     } else {
-                        panic!("Invalid forward command");
+                        panic!("Invalid forward command: expected a number");
                     }
                 }
                 "turn" => {
@@ -47,24 +35,38 @@ impl Command {
                         commands.push(Command::Turn(value));
                         i += 2;
                     } else {
-                        panic!("Invalid turn command");
+                        panic!("Invalid turn command: expected a number");
                     }
                 }
                 "repeat" => {
                     if let Ok(repeats) = tokens[i + 1].parse::<u32>() {
-                        let start = input.find('[').unwrap() + 1;
-                        let end = input.rfind(']').unwrap();
-                        let inner_commands = &input[start..end];
+                        if tokens[i + 2] != "[" {
+                            panic!(
+                                "Expected '[' after 'repeat {}', but found {:?} or nothing.",
+                                repeats,
+                                tokens.get(i + 2)
+                            );
+                        }
+                
+                        let start = i+3;
+                
+                        let end = tokens
+                            .iter()
+                            .rposition(|&w| w == "]")
+                            .expect("No matching ']' found for '[' after 'repeat' command");
+
+
+                        let nested_commands = &tokens[start..end];
                         commands.push(Command::Repeat(
                             repeats,
-                            Command::parse(inner_commands),
+                            Command::parse_tokens(nested_commands),
                         ));
                         i = end + 1;
                     } else {
                         panic!("Invalid repeat command");
                     }
                 }
-                _ => panic!("Unknown command"),
+                _ => panic!("Unknown command {}", tokens[i]),
             }
         }
 
