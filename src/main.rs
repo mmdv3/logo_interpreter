@@ -1,5 +1,6 @@
-use std::fs::File;
-use std::io::Write;
+use svg::node::element::{Group, Line};
+use svg::Document;
+
 
 #[derive(Debug)]
 enum Command {
@@ -11,12 +12,10 @@ enum Command {
 impl Command {
     fn parse(input: &str) -> Vec<Command> {
         let tokens: Vec<&str> = input.split_whitespace().collect();
-
         Self::parse_tokens(&tokens[..])
     }
-    // fn parse_tokens(tokens: Vec<&str>) -> Vec<Command> {
-        fn parse_tokens(tokens: &[&str]) -> Vec<Command> {
 
+    fn parse_tokens(tokens: &[&str]) -> Vec<Command> {
         let mut commands = Vec::new();
         let mut i = 0;
 
@@ -47,14 +46,16 @@ impl Command {
                                 tokens.get(i + 2)
                             );
                         }
-                
-                        let start = i+3;
-                
+
+                        let start = i + 3;
                         let end = tokens
                             .iter()
                             .rposition(|&w| w == "]")
                             .expect("No matching ']' found for '[' after 'repeat' command");
 
+                        if start >= end {
+                            panic!("repeat: found unclosed '['");
+                        }
 
                         let nested_commands = &tokens[start..end];
                         commands.push(Command::Repeat(
@@ -79,7 +80,7 @@ struct Turtle {
     x: f64,
     y: f64,
     angle: f64, // In degrees
-    path: Vec<String>, // Stores SVG path commands
+    path: Vec<Line>, // Stores SVG lines
 }
 
 impl Turtle {
@@ -98,10 +99,14 @@ impl Turtle {
                 let radians = self.angle.to_radians();
                 let new_x = self.x + distance * radians.cos();
                 let new_y = self.y + distance * radians.sin();
-                self.path.push(format!(
-                    "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"black\" />",
-                    self.x, self.y, new_x, new_y
-                ));
+                self.path.push(
+                    Line::new()
+                        .set("x1", self.x)
+                        .set("y1", self.y)
+                        .set("x2", new_x)
+                        .set("y2", new_y)
+                        .set("stroke", "black"),
+                );
                 self.x = new_x;
                 self.y = new_y;
             }
@@ -119,18 +124,18 @@ impl Turtle {
     }
 }
 
-/// Save the turtle's path to an SVG file
-fn save_to_file(path: &[String], file_path: &str) {
-    let mut file = File::create(file_path).expect("Unable to create file");
-    writeln!(
-        file,
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"-100 -100 200 200\">"
-    )
-    .unwrap();
-    for command in path {
-        writeln!(file, "{}", command).unwrap();
+
+fn save_to_file(path: &[Line], file_path: &str) {
+    let mut group = Group::new();
+    for line in path {
+        group = group.add(line.clone());
     }
-    writeln!(file, "</svg>").unwrap();
+
+    let document = Document::new()
+        .set("viewBox", (-100, -100, 200, 200))
+        .add(group);
+
+    svg::save(file_path, &document).expect("Unable to save SVG file");
 }
 
 fn run(commands: impl Iterator<Item = Command>, image_path: &str) {
@@ -144,19 +149,22 @@ fn run(commands: impl Iterator<Item = Command>, image_path: &str) {
 }
 
 fn main() {
-    let commands = Command::parse("repeat 2 [ forward 15 turn 90 ]");
+    let input = "repeat 2 [ forward 50 turn 90 ] forward 30";
+    let commands = Command::parse(input);
     let image_path = "output.svg";
 
     run(commands.into_iter(), image_path);
-}
 
+    println!("SVG file saved to {}", image_path);
+}
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn right_angle() {
-        let commands = Command::parse("repeat 2 [ forward 15 turn 90 ]");
+        let input = "repeat 2 [ forward 50 turn 90 ] forward 30";
+    let commands = Command::parse(input);
     let image_path = "output.svg";
 
     run(commands.into_iter(), image_path);
