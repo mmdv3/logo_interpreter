@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use svg::node::element::Rectangle;
 use svg::node::element::{Group, Line};
 use svg::Document;
@@ -7,79 +9,139 @@ enum Command {
     Forward(f64),
     Turn(f64),
     Repeat(u32, Vec<Command>),
+    Fn_call(String),
 }
 
-impl Command {
-    fn parse(input: &str) -> Vec<Command> {
-        let tokens: Vec<&str> = input.split_whitespace().collect();
-        Self::parse_tokens(&tokens[..])
-    }
+struct Env {
+    functions: HashMap<String, Vec<Command>>,
+}
 
-    fn parse_tokens(tokens: &[&str]) -> Vec<Command> {
-        let mut commands = Vec::new();
-        let mut i = 0;
-
-        while i < tokens.len() {
-            match tokens[i] {
-                "forward" => {
-                    if let Ok(value) = tokens[i + 1].parse::<f64>() {
-                        commands.push(Command::Forward(value));
-                        i += 2;
-                    } else {
-                        panic!("Invalid forward command: expected a number");
-                    }
-                }
-                "turn" => {
-                    if let Ok(value) = tokens[i + 1].parse::<f64>() {
-                        commands.push(Command::Turn(value));
-                        i += 2;
-                    } else {
-                        panic!("Invalid turn command: expected a number");
-                    }
-                }
-                "repeat" => {
-                    if let Ok(repeats) = tokens[i + 1].parse::<u32>() {
-                        if tokens.get(i + 2) != Some(&"[") {
-                            panic!(
-                                "Expected '[' after 'repeat {}', but found {:?} or nothing.",
-                                repeats,
-                                tokens.get(i + 2)
-                            );
-                        }
-
-                        let start = i + 3;
-                        let end = tokens
-                            .iter()
-                            .rposition(|&w| w == "]")
-                            .expect("No matching ']' found for '[' after 'repeat' command");
-
-                        if start >= end {
-                            panic!("Malformed repeat block: '[' found but no commands before ']'");
-                        }
-
-                        let nested_commands = &tokens[start..end];
-                        commands.push(Command::Repeat(
-                            repeats,
-                            Command::parse_tokens(nested_commands),
-                        ));
-                        i = end + 1;
-                    } else {
-                        panic!("Invalid repeat command");
-                    }
-                }
-                _ => panic!("Unknown command {}", tokens[i]),
-            }
+impl Env {
+    fn new() -> Env {
+        Env {
+            functions: HashMap::new(),
         }
-
-        commands
     }
+
+    fn get(&self, label: &String) -> &Vec<Command> {
+        self.functions.get(label).unwrap()
+    }
+
+    fn push(&mut self, (label, commands): (String, Vec<Command>)) {
+        self.functions.insert(label, commands);
+    }
+}
+
+fn parse(input: &str) -> (Vec<Command>, Env) {
+    let mut commands = vec![];
+    let mut cmd_env = Env::new();
+    let mut labels: Vec<String> = vec![];
+
+    let blocks: Vec<(&str, &str)> = input
+        .split("end")
+        .into_iter()
+        .map(|block| {
+            if block.starts_with("to") {
+                ("fn", block)
+            } else {
+                ("exec", block)
+            }
+        })
+        .collect();
+
+    for (bl_type, block) in blocks {
+        let tokens: Vec<&str> = block.split_whitespace().collect();
+
+        if bl_type == "fn" {
+            cmd_env.push(parse_fn(&tokens[..], &mut labels));
+        } else {
+            commands.append(&mut parse_tokens(&tokens[..], &mut labels));
+        }
+    }
+
+    (commands, cmd_env)
+}
+
+fn parse_fn(tokens: &[&str], labels: &mut Vec<String>) -> (String, Vec<Command>) {
+    if tokens[0] != "to" {
+        panic!();
+    }
+
+    let label = tokens[1];
+    labels.push(String::from(label));
+
+    (String::from(label), parse_tokens(&tokens[2..], &mut labels.clone()))
+}
+
+fn parse_tokens(tokens: &[&str], labels: &mut Vec<String>) -> Vec<Command> {
+    let mut commands = Vec::new();
+    let mut i = 0;
+
+    while i < tokens.len() {
+        match tokens[i] {
+            "forward" => {
+                if let Ok(value) = tokens[i + 1].parse::<f64>() {
+                    commands.push(Command::Forward(value));
+                    i += 2;
+                } else {
+                    panic!("Invalid forward command: expected a number");
+                }
+            }
+            "turn" => {
+                if let Ok(value) = tokens[i + 1].parse::<f64>() {
+                    commands.push(Command::Turn(value));
+                    i += 2;
+                } else {
+                    panic!("Invalid turn command: expected a number");
+                }
+            }
+            "repeat" => {
+                if let Ok(repeats) = tokens[i + 1].parse::<u32>() {
+                    if tokens[i + 2] != "[" {
+                        panic!(
+                            "Expected '[' after 'repeat {}', but found {:?} or nothing.",
+                            repeats,
+                            tokens.get(i + 2)
+                        );
+                    }
+
+                    let start = i + 3;
+                    let end = tokens
+                        .iter()
+                        .rposition(|&w| w == "]")
+                        .expect("No matching ']' found for '[' after 'repeat' command");
+
+                    if start >= end {
+                        panic!("Malformed repeat block: '[' found but no commands before ']'");
+                    }
+
+                    let nested_commands = &tokens[start..end];
+                    commands.push(Command::Repeat(
+                        repeats,
+                        parse_tokens(nested_commands, &mut labels.clone()),
+                    ));
+
+                    i = end + 1;
+                } else {
+                    panic!("Invalid repeat command");
+                }
+            }
+            label if labels.contains(&String::from(label)) => {
+                commands.push(Command::Fn_call(String::from(label)));
+                i += 1;
+            }
+            _ => panic!("Unknown command {}", tokens[i]),
+        }
+    }
+
+    commands
 }
 
 #[derive(Debug)]
 struct Turtle {
     x: f64,
     y: f64,
-    angle: f64, // In degrees
+    angle: f64,
 }
 
 impl Turtle {
@@ -91,14 +153,13 @@ impl Turtle {
         }
     }
 
-    fn execute(&mut self, command: &Command, image: &mut Image) {
+    fn execute(&mut self, command: &Command, image: &mut Image, cmd_env: &Env) {
         match command {
             Command::Forward(distance) => {
                 let radians = self.angle.to_radians();
                 let new_x = self.x + distance * radians.cos();
                 let new_y = self.y + distance * radians.sin();
 
-                // Add a line directly to the image
                 image.add_line(self.x, self.y, new_x, new_y);
 
                 self.x = new_x;
@@ -110,8 +171,15 @@ impl Turtle {
             Command::Repeat(times, commands) => {
                 for _ in 0..*times {
                     for command in commands.iter() {
-                        self.execute(command, image);
+                        self.execute(command, image, cmd_env);
                     }
+                }
+            }
+            Command::Fn_call(label) => {
+                let commands = cmd_env.get(label);
+
+                for command in commands {
+                    self.execute(command, image, cmd_env);
                 }
             }
         }
@@ -119,28 +187,15 @@ impl Turtle {
 }
 
 struct Image {
-    // lines: Group, // Stores lines for the SVG document
-    lines: Vec<Line>, // Stores SVG lines
+    lines: Vec<Line>,
 }
 
 impl Image {
     fn new() -> Self {
-        Self {
-            // lines: Group::new(),
-            lines: vec![],
-        }
+        Self { lines: vec![] }
     }
 
-    /// Adds a line to the image
     fn add_line(&mut self, x1: f64, y1: f64, x2: f64, y2: f64) {
-        // let line = Line::new()
-        //     .set("x1", x1)
-        //     .set("y1", y1)
-        //     .set("x2", x2)
-        //     .set("y2", y2)
-        //     .set("stroke", "black");
-        // self.lines = self.lines.add(line);
-
         self.lines.push(
             Line::new()
                 .set("x1", x1)
@@ -151,12 +206,10 @@ impl Image {
         );
     }
 
-    /// Saves the image to a file
     fn save(&self, file_path: &str) {
-        // lepiej dodawać pojedynczo, bez groupy
         let mut group = Group::new();
         for line in &self.lines {
-            group = group.add(line.clone()); // !!!
+            group = group.add(line.clone());
         }
 
         let square = Rectangle::new()
@@ -166,10 +219,8 @@ impl Image {
             .set("height", 300)
             .set("fill", "white");
 
-        // Wywal klona!!!!
         let document = Document::new()
             .set("viewBox", (-100, -100, 200, 200))
-            // .add(self.lines.clone());
             .add(square)
             .add(group);
 
@@ -177,12 +228,12 @@ impl Image {
     }
 }
 
-fn run(commands: impl Iterator<Item = Command>, image_path: &str) {
+fn run(commands: impl Iterator<Item = Command>, cmd_env: Env, image_path: &str) {
     let mut turtle = Turtle::new();
     let mut image = Image::new();
 
     for command in commands {
-        turtle.execute(&command, &mut image);
+        turtle.execute(&command, &mut image, &cmd_env);
     }
 
     image.save(image_path);
@@ -190,23 +241,25 @@ fn run(commands: impl Iterator<Item = Command>, image_path: &str) {
 
 fn main() {
     let input = "repeat 2 [ forward 50 turn 90 ] forward 30";
-    let commands = Command::parse(input);
-    let image_path = "output.svg";
+    let (commands, cmd_env) = parse(input);
+    let image_path = "img/output.svg";
 
-    run(commands.into_iter(), image_path);
+    run(commands.into_iter(), cmd_env, image_path);
 
     println!("SVG file saved to {}", image_path);
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_star() {
-        let input = "repeat 5 [ forward 100 turn 144 ]";
-        let commands = Command::parse(input);
+        let input = "to star repeat 5 [ forward 100 turn 144 ] end star";
+
+        let (commands, cmd_env) = parse(input);
         let image_path = "img/star.svg";
 
-        run(commands.into_iter(), image_path);
+        run(commands.into_iter(), cmd_env, image_path);
     }
 }
