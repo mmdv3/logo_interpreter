@@ -28,7 +28,10 @@ mod tests {
 
     #[test]
     fn test_star() {
-        let input = "to star repeat 5 [ forward 100 turn 144 ] end star";
+        let input = "to star\n
+        repeat 5 [ forward 100 turn 144 ]\n
+        end\n
+        star";
 
         let (commands, cmd_env) = parse(input);
         let image_path = "img/star.svg";
@@ -45,4 +48,43 @@ mod tests {
 
         run(commands.into_iter(), cmd_env, image_path);
     }
+
+    #[test]
+    fn test_tree_simplified() { // normalnie if size < 5
+        let input = "to tree :size\n
+   if :size < 100 [forward :size back :size stop]\n
+   forward :size/3\n
+   tree :size/2\n
+end\n
+tree 150"; // any amount of recurrence causes test overflow
+
+let (commands, cmd_env) = parse(input);
+let image_path = "img/tree_simplified.svg";
+
+run(commands.into_iter(), cmd_env, image_path);
+    }
+
+    #[test]
+    fn test_tree() { // normalnie if size < 5
+        let input = "to tree :size\n
+   if :size < 5 [forward :size back :size stop]\n
+   forward :size/3\n
+   left 30 tree :size*2/3 right 30\n
+   forward :size/6\n
+   right 25 tree :size/2 left 25\n
+   forward :size/3\n
+   right 25 tree :size/2 left 25\n
+   forward :size/6\n
+   back :size\n
+end\n
+tree 150";
+
+let (commands, cmd_env) = parse(input);
+let image_path = "img/tree.svg";
+
+run(commands.into_iter(), cmd_env, image_path);
+    }
 }
+
+
+
