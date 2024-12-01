@@ -16,6 +16,17 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_two_angles() {
+        let input = "repeat 2 [ forward 50 turn 90 ] forward 30";
+        let (commands, cmd_env) = parse(input);
+        let image_path = "img/two_angles.svg";
+    
+        run(commands.into_iter(), cmd_env, image_path);
+    
+        println!("SVG file saved to {}", image_path);
+    }
+
+    #[test]
     fn test_star() {
         let input = "to star repeat 5 [ forward 100 turn 144 ] end star";
 
