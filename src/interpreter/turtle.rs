@@ -121,7 +121,7 @@ impl Turtle {
     //     }
     // }
 
-    pub fn execute(&mut self, token: &Token, image: &mut Image, cmd_env: &Env) -> bool {
+    pub fn execute(&mut self, token: &Token, image: &mut Image, fns: &Functions) -> bool {
         match token {
             Token::Forward(expr) => {
                 let distance = expr.evaluate();
@@ -145,12 +145,12 @@ impl Turtle {
                 self.y = new_y;
 
             }
-            Token::Turn(expr) => {
+            Token::TurnRight(expr) => {
                 let angle = expr.evaluate();
                 self.angle = (self.angle + angle) % 360.0;
 
             }
-            Token::Left(expr) => { //temporary
+            Token::TurnLeft(expr) => { //temporary
                 let angle = expr.evaluate();
                 self.angle = (self.angle - angle) % 360.0;
 
@@ -162,7 +162,7 @@ impl Turtle {
                     match body.as_ref() {
                         Token::Bracket(tokens) => {
                             for token in tokens {
-                                if !self.execute(token, image, cmd_env) {
+                                if !self.execute(token, image, fns) {
                                     return false;
                                 };
                             }
@@ -172,9 +172,9 @@ impl Turtle {
                 }
 
             }
-            Token::FnCallComplete(label, args) => {
+            Token::FnCall(label, args) => {
                 //println!("Begin function call");
-                if let Some(fun) = cmd_env.functions.get(label) {
+                if let Some(fun) = fns.functions.get(label) {
                     // Substitute the arguments into the function body
                     let param_evaluator: HashMap<String, f64> = fun
                         .params
@@ -198,13 +198,13 @@ impl Turtle {
                         .collect::<Vec<Token>>();
 
                     //println!("Commands before wrapping {:?}", commands);
-                    let wrapped_commands = wrap_fn_call(commands, cmd_env); // debug
+                    let wrapped_commands = wrap_fn_call(commands, fns); // debug
                     //println!("Commands after wrapping {:#?}", wrapped_commands);
                     // TODO Execute the substituted tokens
                     // for command in commands {
                     // for command in wrap_fn_call(commands, cmd_env) { // using parser inside interpreter. Weird but ok
                     for command in wrapped_commands { 
-                        if !self.execute(&command, image, cmd_env) {
+                        if !self.execute(&command, image, fns) {
                             return true; // TODO PROBLEM - ten false miał zabić aktualny scope, który tu się właśnie kończy
                         };
                     }
@@ -214,7 +214,7 @@ impl Turtle {
             }
             Token::Bracket(tokens) => {
                 for token in tokens {
-                    if !self.execute(token, image, cmd_env) {
+                    if !self.execute(token, image, fns) {
                         return false;
                     };
                 }
@@ -226,7 +226,7 @@ impl Turtle {
                     match body.as_ref() {
                         Token::Bracket(tokens) => {
                             for token in tokens {
-                                if !self.execute(token, image, cmd_env) {
+                                if !self.execute(token, image, fns) {
                                     return false;
                                 };
                             }

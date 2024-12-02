@@ -69,17 +69,17 @@ const param_prefix: &str = ":";
 
 
 
-pub fn wrap_fn_call(tokens: Vec<Token>, cmd_env: &Env) -> Vec<Token> {
+pub fn wrap_fn_call(tokens: Vec<Token>, fns: &Functions) -> Vec<Token> {
     let mut wrapped_tokens = Vec::new();
     let mut iter = tokens.into_iter();
 
     while let Some(token) = iter.next() {
         //println!("Wrap function call checking token {:?}", token);
         match token {
-            Token::FnCall(label) => {
+            Token::FnLabel(label) => {
                 //println!("Wrapping function call to {}", label);
                 // if let Some(fun) = cmd_env.functions.get(&label) {
-                if let Some(fun) = cmd_env.get(&label) {
+                if let Some(fun) = fns.get(&label) {
                     // let arity = fun.params.len();
                     let arity = fun.arity();
                     let mut args = Vec::new();
@@ -95,14 +95,14 @@ pub fn wrap_fn_call(tokens: Vec<Token>, cmd_env: &Env) -> Vec<Token> {
                         }
                     }
 
-                    wrapped_tokens.push(Token::FnCallComplete(label, args));
+                    wrapped_tokens.push(Token::FnCall(label, args));
                 } else {
                     panic!("Function '{}' not found in the environment", label);
                 }
             }
             Token::Repeat(iterations,block ) => {
                 if let Token::Bracket(bracket) = *block {
-                    let wrapped_block = wrap_fn_call(bracket, cmd_env);
+                    let wrapped_block = wrap_fn_call(bracket, fns);
                     wrapped_tokens.push(Token::Repeat(iterations, Box::new(Token::Bracket(wrapped_block)))); 
                 }
                 else {
@@ -111,7 +111,7 @@ pub fn wrap_fn_call(tokens: Vec<Token>, cmd_env: &Env) -> Vec<Token> {
             }
             Token::If(log_expr, body) => { // modify - box is always a bracket
                 // Recursively wrap function calls inside the conditional body
-                let wrapped_body = wrap_fn_call(vec![*body], cmd_env);
+                let wrapped_body = wrap_fn_call(vec![*body], fns);
                 wrapped_tokens.push(Token::If(log_expr, Box::new(wrapped_body[0].clone())));
             }
             // Token::Bracket(inner_tokens) => {
@@ -128,9 +128,9 @@ pub fn wrap_fn_call(tokens: Vec<Token>, cmd_env: &Env) -> Vec<Token> {
 
 // pub fn parse(input: &str) -> (Vec<Command>, Env) {
     pub fn parse(input: &str) -> (Vec<
-        Token>, Env) {
+        Token>, Functions) {
     let mut commands = vec![];
-    let mut cmd_env = Env::new();
+    let mut fns = Functions::new();
     let mut labels: Vec<String> = vec![];
     let mut label_arity: HashMap<String, usize> = HashMap::new(); // function arity?
 
@@ -155,7 +155,7 @@ pub fn wrap_fn_call(tokens: Vec<Token>, cmd_env: &Env) -> Vec<Token> {
         let tokens: Vec<&str> = block.split_whitespace().collect();
 
         if bl_type == "fn" {
-            cmd_env.push(parse_fn(&tokens[..], &mut labels, &mut label_arity));
+            fns.push(parse_fn(&tokens[..], &mut labels, &mut label_arity));
         } else {
             //commands.append(&mut parse_tokens(&tokens[..], &mut labels, &mut label_arity)); // move function call logic to
             //interpreter
@@ -166,10 +166,10 @@ pub fn wrap_fn_call(tokens: Vec<Token>, cmd_env: &Env) -> Vec<Token> {
         }
     }
 
-    let wrapped_commands = wrap_fn_call(commands,&cmd_env); //debug
+    let wrapped_commands = wrap_fn_call(commands,&fns); //debug
     // (wrap_fn_call(commands,&cmd_env), cmd_env)
     //println!("Finished wrapping commands. Result is {:?}", wrapped_commands);
-    (wrapped_commands, cmd_env)
+    (wrapped_commands, fns)
 }
 
 
@@ -310,7 +310,7 @@ pub fn parse_tokens(input: &[&str], labels: & Vec<String>) -> (Vec<Token>, usize
                 let expr = parse_expr(input, &mut i);
                 //println!("End parsing turn");
                 //println!("Parsed expr is {:?}", expr);
-                tokens.push(Token::Turn(Box::new(expr)));
+                tokens.push(Token::TurnRight(Box::new(expr)));
             }
             "right" => { // same as turn
                 i += 1;
@@ -318,7 +318,7 @@ pub fn parse_tokens(input: &[&str], labels: & Vec<String>) -> (Vec<Token>, usize
                 let expr = parse_expr(input, &mut i);
                 //println!("End parsing turn");
                 //println!("Parsed expr is {:?}", expr);
-                tokens.push(Token::Turn(Box::new(expr)));
+                tokens.push(Token::TurnRight(Box::new(expr)));
             }
             "left" => {
                 i += 1;
@@ -326,7 +326,7 @@ pub fn parse_tokens(input: &[&str], labels: & Vec<String>) -> (Vec<Token>, usize
                 let expr = parse_expr(input, &mut i);
                 //println!("End parsing turn");
                 //println!("Parsed expr is {:?}", expr);
-                tokens.push(Token::Left(Box::new(expr)));
+                tokens.push(Token::TurnLeft(Box::new(expr)));
             }
             "repeat" => {
                 //println!("Parsing repeat starting at {:?}", input);
@@ -375,7 +375,7 @@ pub fn parse_tokens(input: &[&str], labels: & Vec<String>) -> (Vec<Token>, usize
             // }
             token if labels.contains(&String::from(token)) => {
                 i +=1;
-                tokens.push(Token::FnCall(token.to_string()));
+                tokens.push(Token::FnLabel(token.to_string()));
             }
             token => {
                 //println!("Start expr wrapping at text token {}", token);

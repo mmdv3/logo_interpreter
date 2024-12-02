@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use svg::node::element::Rectangle;
 use svg::node::element::{Group, Line};
 use svg::Document;
