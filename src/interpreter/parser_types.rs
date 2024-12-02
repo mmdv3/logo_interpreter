@@ -1,23 +1,19 @@
 use std::collections::HashMap;
 
-
-#[derive(Debug,Clone)]
-pub enum Arg { 
+#[derive(Debug, Clone)]
+pub enum Arg {
     Val(f64),
     Param(String),
 }
 
 #[derive(Debug, Clone)]
 pub enum LogExpr {
-    Greater(Box<Expr>, Box<Expr>),  // Represents expr > expr
-    Less(Box<Expr>, Box<Expr>),     // Represents expr < expr
-    Val(bool),                      //represents computed value
+    Greater(Box<Expr>, Box<Expr>), // Represents expr > expr
+    Less(Box<Expr>, Box<Expr>),    // Represents expr < expr
+    Val(bool),                     //represents computed value
 }
 
-
-
-
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub enum Token {
     Forward(Box<Expr>),
     Back(Box<Expr>),
@@ -27,12 +23,12 @@ pub enum Token {
     FnLabel(String), // execution should panic
     FnCall(String, Vec<Expr>),
     Bracket(Vec<Token>),
-    If(LogExpr, Box<Token>), 
+    If(LogExpr, Box<Token>),
     Expression(Box<Expr>),
     Stop,
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     Arg(Arg),
     Mul(Box<Expr>, Box<Expr>),
@@ -41,15 +37,17 @@ pub enum Expr {
     Sub(Box<Expr>, Box<Expr>),
 }
 
-
 pub struct Fun {
     pub params: Vec<String>,
-    pub body: Vec<Token>
+    pub body: Vec<Token>,
 }
 
-impl Fun{
+impl Fun {
     pub fn new(commands: Vec<Token>, params: Vec<String>) -> Fun {
-        Fun {params, body: commands}
+        Fun {
+            params,
+            body: commands,
+        }
     }
     // fn fun_body(&self, param_vals: &Vec<String>) -> Vec<Token> {
     //     let mut param_evaluator: HashMap<String, String> = HashMap::new();
@@ -59,7 +57,8 @@ impl Fun{
 
     //     eval_params(&self.body, param_evaluator)
     // }
-    pub fn fun_body(&self) -> &Vec<Token> { // chciałbym, żeby to wołało interpreter(parser?), który zrobi podstawienia
+    pub fn fun_body(&self) -> &Vec<Token> {
+        // chciałbym, żeby to wołało interpreter(parser?), który zrobi podstawienia
         // wersja tymczasowa, aż naprawię exec
         // let mut param_evaluator: HashMap<String, String> = HashMap::new();
         // for (param_name, param_val) in self.params.iter().zip(param_vals.iter()) {
@@ -85,7 +84,7 @@ impl Functions {
             functions: HashMap::new(),
         }
     }
-    
+
     pub fn get(&self, label: &String) -> Option<&Fun> {
         self.functions.get(label)
     }

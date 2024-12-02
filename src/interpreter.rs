@@ -66,6 +66,56 @@ impl Expr {
 
 
 
+// fn substitute(cmd: &Command, param_evaluator: &HashMap<String, String>) -> Command {
+//     match cmd {
+//         Command::Forward(Arg::Param(param)) => {
+//             let value = param_evaluator
+//                 .get(param)
+//                 .expect(&format!("Value for parameter '{}' not provided", param));
+//             Command::Forward(Arg::Val(value.parse::<f64>().expect("Invalid value for f64")))
+//         }
+
+//         Command::Turn(Arg::Param(param)) => {
+//             let value = param_evaluator
+//                 .get(param)
+//                 .expect(&format!("Value for parameter '{}' not provided", param));
+//             Command::Turn(Arg::Val(value.parse::<f64>().expect("Invalid value for f64")))
+//         }
+
+//         Command::Repeat(Arg::Param(param), body) => {
+//             let value = param_evaluator
+//                 .get(param)
+//                 .expect(&format!("Value for parameter '{}' not provided", param));
+//             let parsed_value = value.parse::<u32>().expect("Invalid value for u32");
+//             Command::Repeat(Arg::Val(parsed_value), body.iter().map(|c| substitute(c, param_evaluator)).collect())
+//         }
+//         Command::Repeat(Arg::Val(val), body) => {
+//             Command::Repeat(Arg::Val(*val), body.iter().map(|c| substitute(c, param_evaluator)).collect())
+//         }
+
+//         Command::Fn_call(name, args) => {
+//             let substituted_args = args
+//                 .iter()
+//                 .map(|arg| {
+//                     param_evaluator
+//                         .get(arg)
+//                         .unwrap_or(arg) // Leave the argument as is if no substitution is found.
+//                         .to_string()
+//                 })
+//                 .collect();
+//             Command::Fn_call(name.clone(), substituted_args)
+//         }
+
+//         _ => {cmd.clone()}
+//     }
+// }
+
+// fn eval_params(commands: &Vec<Command>, param_evaluator: HashMap<String, String>) -> Vec<Command> {
+//     commands.iter().map(|cmd| substitute(cmd, &param_evaluator)).collect()
+// }
+
+
+
 fn substitute_token(token: &Token, param_evaluator: &HashMap<String, f64>) -> Token {
     match token {
         Token::Stop => {Token::Stop},

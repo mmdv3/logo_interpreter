@@ -1,75 +1,56 @@
 use crate::interpreter::parser_types::*;
-
 use std::collections::HashMap;
 
-// use std::collections::HashMap;
-
-// mod parser_types;
-
-// use parser_types::*; // !!!!
-
-
-/// end parser types
-
-// use crate::code::substitute_expr;
 
 const param_prefix: &str = ":";
+const fn_def_prefix: &str = "to";
+const fn_def_suffix: &str = "end";
 
 
 
 
 
-// fn substitute(cmd: &Command, param_evaluator: &HashMap<String, String>) -> Command {
-//     match cmd {
-//         Command::Forward(Arg::Param(param)) => {
-//             let value = param_evaluator
-//                 .get(param)
-//                 .expect(&format!("Value for parameter '{}' not provided", param));
-//             Command::Forward(Arg::Val(value.parse::<f64>().expect("Invalid value for f64")))
-//         }
-
-//         Command::Turn(Arg::Param(param)) => {
-//             let value = param_evaluator
-//                 .get(param)
-//                 .expect(&format!("Value for parameter '{}' not provided", param));
-//             Command::Turn(Arg::Val(value.parse::<f64>().expect("Invalid value for f64")))
-//         }
-
-//         Command::Repeat(Arg::Param(param), body) => {
-//             let value = param_evaluator
-//                 .get(param)
-//                 .expect(&format!("Value for parameter '{}' not provided", param));
-//             let parsed_value = value.parse::<u32>().expect("Invalid value for u32");
-//             Command::Repeat(Arg::Val(parsed_value), body.iter().map(|c| substitute(c, param_evaluator)).collect())
-//         }
-//         Command::Repeat(Arg::Val(val), body) => {
-//             Command::Repeat(Arg::Val(*val), body.iter().map(|c| substitute(c, param_evaluator)).collect())
-//         }
-
-//         Command::Fn_call(name, args) => {
-//             let substituted_args = args
-//                 .iter()
-//                 .map(|arg| {
-//                     param_evaluator
-//                         .get(arg)
-//                         .unwrap_or(arg) // Leave the argument as is if no substitution is found.
-//                         .to_string()
-//                 })
-//                 .collect();
-//             Command::Fn_call(name.clone(), substituted_args)
-//         }
-
-//         _ => {cmd.clone()}
-//     }
-// }
-
-// fn eval_params(commands: &Vec<Command>, param_evaluator: HashMap<String, String>) -> Vec<Command> {
-//     commands.iter().map(|cmd| substitute(cmd, &param_evaluator)).collect()
-// }
 
 
+fn simplify(input: &str) -> String {
+    input.replace("/", " / ")
+    .replace("*", " * ")
+    .replace("[", " [ ")
+    .replace("]", " ] ")
+    .replace("\n", " ")
+    // simplify input, remove all fd, rt etc.
+    }
+
+pub fn parse(input: &str) -> (Vec<Token>, Functions) {
+    let mut commands = vec![];
+    let mut fns = Functions::new();
+    let mut labels: Vec<String> = vec![];
+    let mut label_arity: HashMap<String, usize> = HashMap::new(); // function arity?
+
+    let input = simplify(input);
+    input
+        .split(fn_def_suffix)
+        .into_iter()
+        .for_each(|block| {
+            let tokens: Vec<&str> = block.split_whitespace().collect();
+            if block.starts_with(fn_def_prefix) {
+                fns.push(parse_fn(&tokens[..], &mut labels, &mut label_arity));
+            } else {
+                let (mut tokens, _) = parse_tokens(&tokens[..], &labels);
+                // let (mut tokens, _) = parse_tokens(&tokens[..], &fns.labels()); // TODO - wrapping
+                commands.append(&mut tokens);
+            }
+        });
+
+    
+    let wrapped_commands = wrap_fn_call(commands,&fns); //debug
+    // (wrap_fn_call(commands,&cmd_env), cmd_env)
+    //println!("Finished wrapping commands. Result is {:?}", wrapped_commands);
+    (wrapped_commands, fns)
+}
 
 pub fn wrap_fn_call(tokens: Vec<Token>, fns: &Functions) -> Vec<Token> {
+    /// Pairs all of the function labels in the input with their arguments
     let mut wrapped_tokens = Vec::new();
     let mut iter = tokens.into_iter();
 
@@ -78,15 +59,13 @@ pub fn wrap_fn_call(tokens: Vec<Token>, fns: &Functions) -> Vec<Token> {
         match token {
             Token::FnLabel(label) => {
                 //println!("Wrapping function call to {}", label);
-                // if let Some(fun) = cmd_env.functions.get(&label) {
                 if let Some(fun) = fns.get(&label) {
-                    // let arity = fun.params.len();
                     let arity = fun.arity();
                     let mut args = Vec::new();
 
                     for _ in 0..arity {
                         if let Some(Token::Expression(expr)) = iter.next() {
-                            args.push(*expr); // Unwrap the boxed expression and add it to args
+                            args.push(*expr);
                         } else {
                             panic!(
                                 "Function '{}' expected {} arguments but fewer were provided",
@@ -109,67 +88,20 @@ pub fn wrap_fn_call(tokens: Vec<Token>, fns: &Functions) -> Vec<Token> {
                     panic!("Repeating token that is not a bracket");
                 }
             }
-            Token::If(log_expr, body) => { // modify - box is always a bracket
-                // Recursively wrap function calls inside the conditional body
-                let wrapped_body = wrap_fn_call(vec![*body], fns);
-                wrapped_tokens.push(Token::If(log_expr, Box::new(wrapped_body[0].clone())));
+            Token::If(log_expr, block) => {
+                if let Token::Bracket(bracket) = *block {
+                let wrapped_body = wrap_fn_call(bracket, fns);
+                wrapped_tokens.push(Token::If(log_expr, Box::new(Token::Bracket(wrapped_body))));
             }
-            // Token::Bracket(inner_tokens) => {
-            //     // Recursively wrap function calls inside brackets
-            //     let wrapped_inner = wrap_fn_call(inner_tokens, cmd_env);
-            //     wrapped_tokens.push(Token::Bracket(wrapped_inner));
-            // }
-            other => wrapped_tokens.push(other), // Add all other tokens unchanged
+            else {
+                panic!("Conditionally executed token that is not a bracket");
+            }
+        }
+            other => wrapped_tokens.push(other),
         }
     }
 
     wrapped_tokens
-}
-
-// pub fn parse(input: &str) -> (Vec<Command>, Env) {
-    pub fn parse(input: &str) -> (Vec<
-        Token>, Functions) {
-    let mut commands = vec![];
-    let mut fns = Functions::new();
-    let mut labels: Vec<String> = vec![];
-    let mut label_arity: HashMap<String, usize> = HashMap::new(); // function arity?
-
-    let input = input.replace("/", " / ")
-    .replace("*", " * ")
-    .replace("[", " [ ")
-    .replace("]", " ] ")
-    .replace("\n", " "); // simplify output, remove all fd, rt etc.
-    let blocks: Vec<(&str, &str)> = input
-        .split("end")
-        .into_iter()
-        .map(|block| {
-            if block.starts_with("to") {
-                ("fn", block)
-            } else {
-                ("exec", block)
-            }
-        })
-        .collect();
-
-    for (bl_type, block) in blocks {
-        let tokens: Vec<&str> = block.split_whitespace().collect();
-
-        if bl_type == "fn" {
-            fns.push(parse_fn(&tokens[..], &mut labels, &mut label_arity));
-        } else {
-            //commands.append(&mut parse_tokens(&tokens[..], &mut labels, &mut label_arity)); // move function call logic to
-            //interpreter
-
-            let (mut tokens, _) = parse_tokens(&tokens[..], &labels);
-            // commands.append(&mut parse_tokens(&tokens[..], &labels));
-            commands.append(&mut tokens);
-        }
-    }
-
-    let wrapped_commands = wrap_fn_call(commands,&fns); //debug
-    // (wrap_fn_call(commands,&cmd_env), cmd_env)
-    //println!("Finished wrapping commands. Result is {:?}", wrapped_commands);
-    (wrapped_commands, fns)
 }
 
 
@@ -281,6 +213,7 @@ fn parse_fn(tokens: &[&str], labels: &mut Vec<String>, label_arity: &mut HashMap
 
 
 pub fn parse_tokens(input: &[&str], labels: & Vec<String>) -> (Vec<Token>, usize) { // usize is artifact
+// pub fn parse_tokens(input: &[&str], fns: &Functions) -> (Vec<Token>, usize) { // usize is artifact
     let mut tokens = Vec::new();
     let mut i = 0;
 
