@@ -220,10 +220,10 @@ pub fn wrap_fn_call(tokens: Vec<Token>, cmd_env: &Env) -> Vec<Token> {
     let mut iter = tokens.into_iter();
 
     while let Some(token) = iter.next() {
-        println!("Wrap function call checking token {:?}", token);
+        //println!("Wrap function call checking token {:?}", token);
         match token {
             Token::FnCall(label) => {
-                println!("Wrapping function call to {}", label);
+                //println!("Wrapping function call to {}", label);
                 if let Some(fun) = cmd_env.functions.get(&label) {
                     let arity = fun.params.len();
                     let mut args = Vec::new();
@@ -312,13 +312,13 @@ pub fn wrap_fn_call(tokens: Vec<Token>, cmd_env: &Env) -> Vec<Token> {
 
     let wrapped_commands = wrap_fn_call(commands,&cmd_env); //debug
     // (wrap_fn_call(commands,&cmd_env), cmd_env)
-    println!("Finished wrapping commands. Result is {:?}", wrapped_commands);
+    //println!("Finished wrapping commands. Result is {:?}", wrapped_commands);
     (wrapped_commands, cmd_env)
 }
 
 
 fn parse_fn(tokens: &[&str], labels: &mut Vec<String>, label_arity: &mut HashMap<String, usize>) -> (String, Vec<Token>, Vec<String>) {
-    println!("Parsing function body {:?}", tokens);
+    //println!("Parsing function body {:?}", tokens);
     if tokens[0] != "to" {
         panic!();
     }
@@ -333,7 +333,7 @@ fn parse_fn(tokens: &[&str], labels: &mut Vec<String>, label_arity: &mut HashMap
         params = tokens[param_start..fn_body_start].iter().map(|&token| String::from(token)).collect();
     }
     else {
-        println!("Parsing function, no parameters found");
+        //println!("Parsing function, no parameters found");
         params = vec![];
     }
 
@@ -341,11 +341,11 @@ fn parse_fn(tokens: &[&str], labels: &mut Vec<String>, label_arity: &mut HashMap
     labels.push(String::from(label));
     label_arity.insert(String::from(label), params.len());
 
-    println!("Parsing function body from token {}, found {} params", fn_body_start, params.len());
+    //println!("Parsing function body from token {}, found {} params", fn_body_start, params.len());
     // (String::from(label), parse_tokens(&tokens[fn_body_start..], &mut labels.clone(), label_arity), params)
 
     let (fn_body, _) =  parse_tokens(&tokens[fn_body_start..], &labels);
-    println!("Function body is {:#?}", fn_body);
+    //println!("Function body is {:#?}", fn_body);
     // (String::from(label), parse_tokens(&tokens[fn_body_start..], &labels), params)
     (String::from(label), fn_body, params)
 }
@@ -430,7 +430,7 @@ pub fn parse_tokens(input: &[&str], labels: & Vec<String>) -> (Vec<Token>, usize
 
     while i < input.len() { // mało funkcyjnie
         let debug_val = (input[i], i);
-        println!("parsing text-token {} at index {} of {:?}", input[i], i, input);
+        //println!("parsing text-token {} at index {} of {:?}", input[i], i, input);
         match input[i] {
             "stop" => {
                 i += 1;
@@ -439,49 +439,49 @@ pub fn parse_tokens(input: &[&str], labels: & Vec<String>) -> (Vec<Token>, usize
             "forward" => {
                 i += 1;
                 let expr = parse_expr(input, &mut i);
-                println!("Parsed expr is {:?}", expr);
+                //println!("Parsed expr is {:?}", expr);
                 tokens.push(Token::Forward(Box::new(expr)));
             }
             "back" => {
                 i += 1;
                 let expr = parse_expr(input, &mut i);
-                println!("Parsed expr is {:?}", expr);
+                //println!("Parsed expr is {:?}", expr);
                 tokens.push(Token::Back(Box::new(expr)));
             }
             "turn" => {
                 i += 1;
-                println!("Start parsing turn");
+                //println!("Start parsing turn");
                 let expr = parse_expr(input, &mut i);
-                println!("End parsing turn");
-                println!("Parsed expr is {:?}", expr);
+                //println!("End parsing turn");
+                //println!("Parsed expr is {:?}", expr);
                 tokens.push(Token::Turn(Box::new(expr)));
             }
             "right" => { // same as turn
                 i += 1;
-                println!("Start parsing turn");
+                //println!("Start parsing turn");
                 let expr = parse_expr(input, &mut i);
-                println!("End parsing turn");
-                println!("Parsed expr is {:?}", expr);
+                //println!("End parsing turn");
+                //println!("Parsed expr is {:?}", expr);
                 tokens.push(Token::Turn(Box::new(expr)));
             }
             "left" => {
                 i += 1;
-                println!("Start parsing turn");
+                //println!("Start parsing turn");
                 let expr = parse_expr(input, &mut i);
-                println!("End parsing turn");
-                println!("Parsed expr is {:?}", expr);
+                //println!("End parsing turn");
+                //println!("Parsed expr is {:?}", expr);
                 tokens.push(Token::Left(Box::new(expr)));
             }
             "repeat" => {
-                println!("Parsing repeat starting at {:?}", input);
+                //println!("Parsing repeat starting at {:?}", input);
                 i +=1; // move to parse_expr?
                 let expr = parse_expr(input, &mut i);
-                println!("Bracket parsing - start");
+                //println!("Bracket parsing - start");
                 i +=1; // TODO
                 let bracket = parse_bracket(input, &mut i, labels);
-                println!("Bracket parsing - end");
-                println!("Parsed expr is {:?}", expr);
-                println!("Parsed bracket is {:?}", bracket);
+                //println!("Bracket parsing - end");
+                //println!("Parsed expr is {:?}", expr);
+                //println!("Parsed bracket is {:?}", bracket);
                 tokens.push(Token::Repeat(Box::new(expr), Box::new(bracket)));
             }
             "if" => {
@@ -492,7 +492,7 @@ pub fn parse_tokens(input: &[&str], labels: & Vec<String>) -> (Vec<Token>, usize
                 let expr2 = parse_expr(input, &mut i);
                 i+=1;
                 let body = parse_bracket(input, &mut i, labels);
-                println!("If statement body is {:#?}", body);
+                //println!("If statement body is {:#?}", body);
                 // TODO PROBLEM (body is too large)
 
                 match log_op {
@@ -504,14 +504,14 @@ pub fn parse_tokens(input: &[&str], labels: & Vec<String>) -> (Vec<Token>, usize
                 }
                 // tokens.push(Token::If(log_expr, Box::new(body)));
             }
-            "]" => {println!("Finished parsing as bracket is closed, returning"); // TODO PROBLEM
+            "]" => {//println!("Finished parsing as bracket is closed, returning"); // TODO PROBLEM
         return (tokens, i-1);},
             // "[" => { // tutaj chyba nigdy nie wchodzimy!
             //     panic!("Open bracket without context");
             //     i += 1;
-            //     println!("Bracket parsing - start");
+            //     //println!("Bracket parsing - start");
             //     let bracket = parse_bracket(input, &mut i, labels);
-            //     println!("Bracket parsing - end");
+            //     //println!("Bracket parsing - end");
             //     tokens.push(bracket);
             // }
             // token if token.starts_with(':') => {
@@ -522,16 +522,16 @@ pub fn parse_tokens(input: &[&str], labels: & Vec<String>) -> (Vec<Token>, usize
                 tokens.push(Token::FnCall(token.to_string()));
             }
             token => {
-                println!("Start expr wrapping at text token {}", token);
+                //println!("Start expr wrapping at text token {}", token);
                 let expr = parse_expr(input, &mut i); //debug
-                println!("Parsed expr is {:?}", expr);
+                //println!("Parsed expr is {:?}", expr);
                 // tokens.push(Token::Expression(Box::new(parse_expr(input, &mut i))));
                 tokens.push(Token::Expression(Box::new(expr)));
                 // panic!("Processing illegal text-token {}", token);
             }
         }
         // i += 1; // TODO
-        println!("Finished parsing token at index {:?} next index is {}", debug_val, i)
+        //println!("Finished parsing token at index {:?} next index is {}", debug_val, i)
     }
     (tokens, i)
 }
@@ -541,10 +541,17 @@ fn parse_expr(input: &[&str], i: &mut usize) -> Expr { // rewrite functionally
     let mut expr_stack = Vec::new();
     let mut op_stack = Vec::new();
 
+    let mut read_next = "variable";
+
     let mut expr_finished = false;
     // while *i < input.len() { //tODO
     // *i += 1;
     while !expr_finished && *i < input.len() {
+        println!("Parse expr matching token {}", input[*i]);
+
+        match read_next {
+            "operator" => {
+        
         match input[*i] {
             "*" | "/" | "+" | "-" => {
                 while let Some(op) = op_stack.pop() {
@@ -560,21 +567,39 @@ fn parse_expr(input: &[&str], i: &mut usize) -> Expr { // rewrite functionally
                 }
                 op_stack.push(input[*i]);
                 *i += 1;
+                read_next = "variable";
             }
+            other => {
+                println!("Parser found {} instead of operator, finishing expression", other);
+                expr_finished = true; 
+                break;
+            }
+        }
+    }
+        "variable" => {
+            match input[*i] {
             // "[" | "]" => break, // remove case?
             token if token.starts_with(':') => {
                 expr_stack.push(Expr::Arg(Arg::Param(token.to_string())));
                 *i += 1;
+                read_next = "operator";
             }
             token => {
                 if let Ok(num) = token.parse::<f64>() {
 
                 expr_stack.push(Expr::Arg(Arg::Val(num)));
                 *i += 1;
-                println!("Pushed value {} to stack", num);
+                read_next = "operator"
+                //println!("Pushed value {} to stack", num);
                 }
-                else {println!("Finished parsing expression at {}", token); expr_finished = true; break}
+            else {
+                panic!("Parser found {} instead of variable", token);
             }
+                // else {
+                //     // println!("Finished parsing expression at {}", token);
+                //      expr_finished = true; break}
+            }
+
             // token => { // TODO
             //     if let Ok(num) = token.parse::<f64>() {
             //         expr_stack.push(Expr::Arg(Arg::Val(num)));
@@ -583,10 +608,16 @@ fn parse_expr(input: &[&str], i: &mut usize) -> Expr { // rewrite functionally
             //     }
             // }
         }
-        // *i += 1;
     }
+        other => {
+            panic!{"Illegal value of read_next {}", other};
+        }
+    }
+}
+        // *i += 1;
+    
 
-    println!("Popping operators from stack");
+    //println!("Popping operators from stack");
     while let Some(op) = op_stack.pop() {
         let rhs = expr_stack.pop().unwrap();
         let lhs = expr_stack.pop().unwrap();
@@ -599,6 +630,7 @@ fn parse_expr(input: &[&str], i: &mut usize) -> Expr { // rewrite functionally
         });
     }
 
+    println!("Finished parsing single expression");
     expr_stack.pop().unwrap()
 }
 
@@ -818,7 +850,7 @@ impl Turtle {
     //     }
     // }
 
-    pub fn execute(&mut self, token: &Token, image: &mut Image, cmd_env: &Env) {
+    pub fn execute(&mut self, token: &Token, image: &mut Image, cmd_env: &Env) -> bool {
         match token {
             Token::Forward(expr) => {
                 let distance = expr.evaluate();
@@ -829,6 +861,7 @@ impl Turtle {
                 image.add_line(self.x, self.y, new_x, new_y);
                 self.x = new_x;
                 self.y = new_y;
+
             }
             Token::Back(expr) => {
                 let distance = expr.evaluate();
@@ -839,14 +872,18 @@ impl Turtle {
                 image.add_line(self.x, self.y, new_x, new_y);
                 self.x = new_x;
                 self.y = new_y;
+
             }
             Token::Turn(expr) => {
                 let angle = expr.evaluate();
                 self.angle = (self.angle + angle) % 360.0;
+
             }
             Token::Left(expr) => { //temporary
                 let angle = expr.evaluate();
                 self.angle = (self.angle - angle) % 360.0;
+
+            
             } 
             Token::Repeat(expr, body) => {
                 let times = expr.evaluate() as u32;
@@ -854,15 +891,18 @@ impl Turtle {
                     match body.as_ref() {
                         Token::Bracket(tokens) => {
                             for token in tokens {
-                                self.execute(token, image, cmd_env);
+                                if !self.execute(token, image, cmd_env) {
+                                    return false;
+                                };
                             }
                         }
                         _ => panic!("Repeat body must be a Bracket token"),
                     }
                 }
+
             }
             Token::FnCallComplete(label, args) => {
-                println!("Begin function call");
+                //println!("Begin function call");
                 if let Some(fun) = cmd_env.functions.get(label) {
                     // Substitute the arguments into the function body
                     let param_evaluator: HashMap<String, f64> = fun
@@ -878,20 +918,24 @@ impl Turtle {
                         })
                         .collect();
 
+                    println!("Calling function with parameters: {:?}", param_evaluator);
+
                     let commands = fun //kiedyś robiłem to jakoś na zewnątrz, sprawdź jak jest lepiej
                         .body
                         .iter()
                         .map(|token| substitute_token(token, &param_evaluator))
                         .collect::<Vec<Token>>();
 
-                    println!("Commands before wrapping {:?}", commands);
+                    //println!("Commands before wrapping {:?}", commands);
                     let wrapped_commands = wrap_fn_call(commands, cmd_env); // debug
-                    println!("Commands after wrapping {:#?}", wrapped_commands);
+                    //println!("Commands after wrapping {:#?}", wrapped_commands);
                     // TODO Execute the substituted tokens
                     // for command in commands {
                     // for command in wrap_fn_call(commands, cmd_env) { // using parser inside interpreter. Weird but ok
                     for command in wrapped_commands { 
-                        self.execute(&command, image, cmd_env);
+                        if !self.execute(&command, image, cmd_env) {
+                            return true; // TODO PROBLEM - ten false miał zabić aktualny scope, który tu się właśnie kończy
+                        };
                     }
                 } else {
                     panic!("Function '{}' not found in the environment", label);
@@ -899,27 +943,35 @@ impl Turtle {
             }
             Token::Bracket(tokens) => {
                 for token in tokens {
-                    self.execute(token, image, cmd_env);
+                    if !self.execute(token, image, cmd_env) {
+                        return false;
+                    };
                 }
             }
             Token::If(log_expr, body) => {
-                println!("Evaluating logical expression {:?}", log_expr);
+                //println!("Evaluating logical expression {:?}", log_expr);
                 if let LogExpr::Val(true) = log_expr.evaluate() {
-                    println!("Evaluated true");
+                    //println!("Evaluated true");
                     match body.as_ref() {
                         Token::Bracket(tokens) => {
                             for token in tokens {
-                                self.execute(token, image, cmd_env);
+                                if !self.execute(token, image, cmd_env) {
+                                    return false;
+                                };
                             }
                         }
                         _ => panic!("If body must be a Bracket token"),
                     }
                 }
-                else {println!("Evaluated false");}  //debug
+                else {
+                    //println!("Evaluated false");
+                }  //debug
             }
-            Token::Stop => { return;},
+            Token::Stop => { return false;},
             _ => panic!("Unsupported token in execute: {:?}", token),
         }
+
+        true
     }
 }
 
@@ -950,14 +1002,14 @@ impl Image {
         }
 
         let square = Rectangle::new()
-            .set("x", -100)
-            .set("y", -100)
-            .set("width", 300)
-            .set("height", 300)
+            .set("x", -400)
+            .set("y", -400)
+            .set("width", 1200)
+            .set("height", 1200)
             .set("fill", "white");
 
         let document = Document::new()
-            .set("viewBox", (-100, -100, 200, 200))
+            .set("viewBox", (-400, -400, 800, 800))
             .add(square)
             .add(group);
 
@@ -971,7 +1023,7 @@ pub fn run(commands: impl Iterator<Item = Token> + std::fmt::Debug, cmd_env: Env
     let mut turtle = Turtle::new();
     let mut image = Image::new();
 
-    println!("Begin executing commands {:?}", commands);
+    //println!("Begin executing commands {:?}", commands);
     for command in commands {
         turtle.execute(&command, &mut image, &cmd_env);
     }
