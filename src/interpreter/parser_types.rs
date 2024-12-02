@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::interpreter::parser::wrap_fn_call;
-use crate::interpreter::substitute_token;
+use crate::interpreter::{substitute_token, substitute_expr};
 
 #[derive(Debug, Clone)]
 pub enum Arg {
@@ -14,6 +14,28 @@ pub enum LogExpr {
     Greater(Box<Expr>, Box<Expr>), // Represents expr > expr
     Less(Box<Expr>, Box<Expr>),    // Represents expr < expr
     Val(bool),                     //represents computed value
+}
+
+impl LogExpr {
+    pub fn evaluate(&self) -> LogExpr {
+        match self {
+            LogExpr::Greater(lhs, rhs) => LogExpr::Val(lhs.evaluate() > rhs.evaluate()),
+            LogExpr::Less(lhs, rhs) => LogExpr::Val(lhs.evaluate() < rhs.evaluate()),
+            LogExpr::Val(_) => {self.clone()},
+        }
+    }
+
+    pub fn substitute(&self, param_evaluator: &HashMap<String, f64>) -> LogExpr {
+        match self {
+            LogExpr::Greater(lhs, rhs) => LogExpr::Greater(
+                substitute_expr(lhs, param_evaluator) , 
+                substitute_expr(rhs, param_evaluator)),
+            LogExpr::Less(lhs, rhs) => LogExpr::Less(
+                substitute_expr(lhs, param_evaluator) , 
+                substitute_expr(rhs, param_evaluator)),
+            LogExpr::Val(_) => {self.clone()},
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -40,6 +62,24 @@ pub enum Expr {
     Sub(Box<Expr>, Box<Expr>),
 }
 
+impl Expr {
+    pub fn evaluate(&self) -> f64 {
+        match self {
+            Expr::Arg(Arg::Val(value)) => *value,
+            Expr::Arg(Arg::Param(param)) => {
+                panic!(
+                    "Parameter '{}' found during evaluation",
+                    param
+                );
+            }
+            Expr::Mul(lhs, rhs) => lhs.evaluate() * rhs.evaluate(),
+            Expr::Div(lhs, rhs) => lhs.evaluate() / rhs.evaluate(),
+            Expr::Add(lhs, rhs) => lhs.evaluate() + rhs.evaluate(),
+            Expr::Sub(lhs, rhs) => lhs.evaluate() - rhs.evaluate(),
+        }
+    }
+}
+
 pub struct Fun {
     pub params: Vec<String>,
     pub body: Vec<Token>,
@@ -52,26 +92,6 @@ impl Fun {
             body: commands,
         }
     }
-    // fn fun_body(&self, param_vals: &Vec<String>) -> Vec<Token> {
-    //     let mut param_evaluator: HashMap<String, String> = HashMap::new();
-    //     for (param_name, param_val) in self.params.iter().zip(param_vals.iter()) {
-    //         param_evaluator.insert(param_name.clone(), param_val.clone());
-    //     }
-
-    //     eval_params(&self.body, param_evaluator)
-    // }
-    pub fn fun_body(&self) -> &Vec<Token> {
-        // chciałbym, żeby to wołało interpreter(parser?), który zrobi podstawienia
-        // wersja tymczasowa, aż naprawię exec
-        // let mut param_evaluator: HashMap<String, String> = HashMap::new();
-        // for (param_name, param_val) in self.params.iter().zip(param_vals.iter()) {
-        //     param_evaluator.insert(param_name.clone(), param_val.clone());
-        // }
-
-        // eval_params(&self.body, param_evaluator)
-        &self.body
-    }
-
     pub fn arity(&self) -> usize {
         self.params.len()
     }

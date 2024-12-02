@@ -1,7 +1,4 @@
-use std::collections::HashMap;
-
 use crate::interpreter::image::*;
-use crate::interpreter::parser::*;
 use crate::interpreter::*;
 
 #[derive(Debug)]
