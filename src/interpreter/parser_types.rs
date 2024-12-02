@@ -1,5 +1,8 @@
 use std::collections::HashMap;
 
+use crate::interpreter::parser::wrap_fn_call;
+use crate::interpreter::substitute_token;
+
 #[derive(Debug, Clone)]
 pub enum Arg {
     Val(f64),
@@ -91,5 +94,40 @@ impl Functions {
 
     pub fn push(&mut self, (label, commands, params): (String, Vec<Token>, Vec<String>)) {
         self.functions.insert(label, Fun::new(commands, params));
+    }
+
+    pub fn contains(&self, label: &String) -> bool {
+        self.functions.contains_key(label)
+    }
+
+    pub fn labels(&self) -> Vec<&String> {
+        self.functions.keys().collect()
+    }
+
+    pub fn get_commands(&self, label: &String, args: &Vec<Expr>) -> Vec<Token> {
+        let fun = self.get(label).unwrap();
+        let param_evaluator: HashMap<String, f64> = fun
+                        .params
+                        .iter()
+                        .zip(args.iter())
+                        .map(|(param, expr)| {
+                            (
+                                param.clone(),
+                                expr.evaluate(), // Evaluate the expression argument
+                                // All of the substitutions were done by the parser
+                            )
+                        })
+                        .collect();
+
+        println!("Calling function with parameters: {:?}", param_evaluator);
+
+        let commands = fun
+                        .body
+                        .iter()
+                        .map(|token| substitute_token(token, &param_evaluator))
+                        .collect::<Vec<Token>>();
+
+                    //println!("Commands before wrapping {:?}", commands);
+        wrap_fn_call(commands, self)
     }
 }
